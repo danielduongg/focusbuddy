@@ -17,6 +17,11 @@
     --good: #34d399;
     --warn: #fbbf24;
     --bad: #f87171;
+    --owl-body: #6470b8;
+    --owl-wing: #55609e;
+    --owl-belly: #e7eaf6;
+    --owl-pupil: #14161d;
+    --owl-beak: #f6b23e;
     --radius: 16px;
     --shadow: 0 10px 30px rgba(0,0,0,.35);
   }
@@ -46,12 +51,39 @@
   /* Companion */
   .companion { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
   .avatar {
-    font-size: 40px; line-height: 1; width: 64px; height: 64px; flex: none;
+    width: 72px; height: 72px; flex: none;
     display: flex; align-items: center; justify-content: center;
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 50%;
-    transition: transform .18s ease;
+    background: radial-gradient(circle at 50% 38%, #232838, var(--panel-2));
+    border: 1px solid var(--line); border-radius: 50%;
+    transition: transform .18s ease; overflow: hidden;
   }
-  .avatar.pop { transform: scale(1.16) rotate(-4deg); }
+  .avatar.pop { transform: scale(1.08); }
+  #owlSvg { width: 82%; height: 82%; overflow: visible; animation: owlbob 3.6s ease-in-out infinite; }
+  #owlSvg.sleeping { animation: owlsleep 4s ease-in-out infinite; }
+  .owl-body { fill: var(--owl-body); }
+  .owl-belly { fill: var(--owl-belly); }
+  .owl-eye { fill: #fff; }
+  .owl-pupil { fill: var(--owl-pupil); transition: transform .25s ease; }
+  .owl-lid { fill: var(--owl-body); transform: translateY(-26px); transition: transform .12s ease; }
+  .owl-tuft { fill: var(--owl-body); }
+  .owl-wing { fill: var(--owl-wing); transform-box: fill-box; transform-origin: 50% 12%; }
+  .owl-beak { fill: var(--owl-beak); }
+  .owl-feet { fill: var(--owl-beak); }
+  .owl-wing.wave { animation: wave .5s ease; }
+  #owlG { transform-box: fill-box; transform-origin: 50% 92%; }
+  #owlG.bounce { animation: bounce .6s cubic-bezier(.3,1.4,.5,1); }
+  #owlG.lean { animation: lean .5s ease; }
+  #sparkles { opacity: 0; transform-box: fill-box; transform-origin: center; }
+  #sparkles.spk { animation: spk .85s ease; }
+  #zzz { opacity: 0; }
+  #owlSvg.sleeping #zzz { animation: zzz 2.6s ease-in-out infinite; }
+  @keyframes owlbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @keyframes owlsleep { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(1.5px) rotate(2deg); } }
+  @keyframes wave { 0%,100% { transform: rotate(0); } 30% { transform: rotate(-28deg); } 65% { transform: rotate(-8deg); } }
+  @keyframes bounce { 0% { transform: translateY(0); } 35% { transform: translateY(-7px); } 70% { transform: translateY(0); } 85% { transform: translateY(-2px); } 100% { transform: translateY(0); } }
+  @keyframes lean { 0%,100% { transform: rotate(0); } 50% { transform: rotate(6deg); } }
+  @keyframes spk { 0% { opacity: 0; transform: scale(.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.3); } }
+  @keyframes zzz { 0% { opacity: 0; transform: translateY(2px); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-8px); } }
   .bubble { flex: 1; min-width: 0; }
   .bubble-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
   .bubble-name { font-weight: 700; }
@@ -155,7 +187,35 @@
 
   <!-- AI companion -->
   <div class="card companion" id="companionCard">
-    <div class="avatar" id="avatar">🦉</div>
+    <div class="avatar" id="avatar">
+      <svg id="owlSvg" viewBox="0 0 100 104" xmlns="http://www.w3.org/2000/svg" aria-label="Hoot the owl">
+        <g id="owlG">
+          <ellipse class="owl-feet" cx="42" cy="94" rx="5" ry="3"/>
+          <ellipse class="owl-feet" cx="58" cy="94" rx="5" ry="3"/>
+          <ellipse id="wingL" class="owl-wing" cx="19" cy="60" rx="9" ry="19"/>
+          <ellipse id="wingR" class="owl-wing" cx="81" cy="60" rx="9" ry="19"/>
+          <path class="owl-tuft" d="M33 24 L26 7 L45 20 Z"/>
+          <path class="owl-tuft" d="M67 24 L74 7 L55 20 Z"/>
+          <ellipse class="owl-body" cx="50" cy="58" rx="33" ry="35"/>
+          <ellipse class="owl-belly" cx="50" cy="66" rx="21" ry="24"/>
+          <circle class="owl-eye" cx="37" cy="46" r="13"/>
+          <circle class="owl-eye" cx="63" cy="46" r="13"/>
+          <circle id="pupilL" class="owl-pupil" cx="37" cy="46" r="5.5"/>
+          <circle id="pupilR" class="owl-pupil" cx="63" cy="46" r="5.5"/>
+          <circle id="lidL" class="owl-lid" cx="37" cy="46" r="13.2"/>
+          <circle id="lidR" class="owl-lid" cx="63" cy="46" r="13.2"/>
+          <path class="owl-beak" d="M50 51 L44 59 Q50 63 56 59 Z"/>
+          <g id="sparkles">
+            <path d="M21 30 l1.6 4.2 4.2 1.6 -4.2 1.6 -1.6 4.2 -1.6 -4.2 -4.2 -1.6 4.2 -1.6 z" fill="#ffd86b"/>
+            <path d="M82 25 l1.2 3.2 3.2 1.2 -3.2 1.2 -1.2 3.2 -1.2 -3.2 -3.2 -1.2 3.2 -1.2 z" fill="#ffd86b"/>
+          </g>
+          <g id="zzz" fill="#9aa3b2" font-family="sans-serif" font-weight="700">
+            <text x="73" y="33" font-size="10">z</text>
+            <text x="81" y="25" font-size="13">z</text>
+          </g>
+        </g>
+      </svg>
+    </div>
     <div class="bubble">
       <div class="bubble-head">
         <span class="bubble-name">Hoot</span>
@@ -288,11 +348,7 @@ const MSGS = {
   },
 };
 
-// ---------- Companion ----------
-const MOODS = {
-  idle: "🦉", greet: "🦉", focused: "🦉", deep: "🤓", distracted: "🤔",
-  away: "😴", back: "😊", nudge: "👋", celebrate: "🥳", proud: "🤩", done: "🦉",
-};
+// ---------- Companion lines ----------
 const LINES = {
   greet: ["Let's do this — I'll be right here. 🦉", "Settle in. I've got your back.", "Ready when you are. One task at a time."],
   calibrated: ["Calibrated. Go get 'em.", "All set — I can see you're locked in.", "Got your baseline. Let's focus."],
@@ -399,12 +455,64 @@ function loadAI() {
   updateAIBtn();
 }
 
-// ---------- Companion helpers ----------
+// ---------- Companion helpers + animated owl rig ----------
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+const EXPR = {
+  idle:       { look: [0, 0],     lids: 0 },
+  greet:      { look: [0, 0],     lids: 0, wave: true },
+  focused:    { look: [0, 1],     lids: 0 },
+  deep:       { look: [0, 0],     lids: 0.35 },
+  distracted: { look: [3.2, 0],   lids: 0 },
+  away:       { look: [0, 0],     lids: 1, sleep: true },
+  back:       { look: [0, 0],     lids: 0, wave: true },
+  nudge:      { look: [0, 0],     lids: 0, wave: true, lean: true },
+  celebrate:  { look: [0, -2.4],  lids: 0, bounce: true },
+  proud:      { look: [0, -1.6],  lids: 0, bounce: true, sparkle: true },
+  done:       { look: [0, 0],     lids: 0 },
+};
+let owlSvg, owlG, pupilL, pupilR, lidL, lidR, wingL, wingR, sparkleG;
+let curMood = "idle", curLook = [0, 0], curLid = 0, curSleep = false;
+
+function initOwl() {
+  owlSvg = $("owlSvg"); owlG = $("owlG");
+  pupilL = $("pupilL"); pupilR = $("pupilR");
+  lidL = $("lidL"); lidR = $("lidR");
+  wingL = $("wingL"); wingR = $("wingR"); sparkleG = $("sparkles");
+  setMood("idle");
+  scheduleBlink(); scheduleGlance();
+}
+function setPupils(dx, dy) {
+  const t = `translate(${dx}px, ${dy}px)`;
+  if (pupilL) pupilL.style.transform = t;
+  if (pupilR) pupilR.style.transform = t;
+}
+function setLids(v) {
+  const t = `translateY(${(-26 * (1 - v)).toFixed(2)}px)`;
+  if (lidL) lidL.style.transform = t;
+  if (lidR) lidR.style.transform = t;
+}
+function retrigger(el, cls) { if (!el) return; el.classList.remove(cls); void el.getBoundingClientRect(); el.classList.add(cls); }
 function setMood(mood) {
-  const a = $("avatar");
-  a.textContent = MOODS[mood] || MOODS.idle;
-  a.classList.remove("pop"); void a.offsetWidth; a.classList.add("pop");
+  const c = EXPR[mood] || EXPR.idle;
+  curMood = mood; curLook = c.look; curLid = c.lids || 0; curSleep = !!c.sleep;
+  setPupils(c.look[0], c.look[1]);
+  setLids(curSleep ? 1 : curLid);
+  if (owlSvg) owlSvg.classList.toggle("sleeping", curSleep);
+  if (c.wave) { retrigger(wingL, "wave"); retrigger(wingR, "wave"); }
+  if (c.bounce) retrigger(owlG, "bounce");
+  if (c.lean) retrigger(owlG, "lean");
+  if (c.sparkle) retrigger(sparkleG, "spk");
+  retrigger($("avatar"), "pop");
+}
+function scheduleBlink() { setTimeout(() => { blink(); scheduleBlink(); }, 2200 + Math.random() * 3800); }
+function blink() { if (curSleep) return; setLids(1); setTimeout(() => setLids(curLid), 120); }
+function scheduleGlance() { setTimeout(() => { glance(); scheduleGlance(); }, 2800 + Math.random() * 4200); }
+function glance() {
+  if (curSleep || !["idle", "focused", "deep"].includes(curMood)) return;
+  const dx = (Math.random() * 2 - 1) * 2.6;
+  setPupils(dx, curLook[1]);
+  setTimeout(() => setPupils(curLook[0], curLook[1]), 720);
 }
 function speak(text, mood, important) {
   const now = performance.now() / 1000;
@@ -793,6 +901,7 @@ function fmt(sec) {
 // init
 renderAllTime();
 loadAI();
+initOwl();
 $("modeHint").textContent = MODES.gentle.hint;
 </script>
 </body>
