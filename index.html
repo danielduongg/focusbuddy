@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FocusBuddy — your on-device body double</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%91%80%3C/text%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --line: #2a2f3a;
+    --text: #e7eaf0;
+    --muted: #9aa3b2;
+    --accent: #5b8cff;
+    --good: #34d399;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 800px at 70% -10%, #1a2030 0%, var(--bg) 55%);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  header .logo { font-size: 30px; }
+  header h1 { font-size: 22px; margin: 0; letter-spacing: .2px; }
+  header .tag { color: var(--muted); font-size: 13px; margin: 0; }
+  .privacy {
+    margin: 14px 0 22px; padding: 10px 14px; border: 1px solid var(--line);
+    background: linear-gradient(0deg, rgba(52,211,153,.06), rgba(52,211,153,.06)), var(--panel);
+    border-radius: 12px; color: var(--muted); font-size: 13px;
+  }
+  .privacy b { color: var(--good); }
+  .grid { display: grid; grid-template-columns: 1.25fr .9fr; gap: 20px; }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+  }
+  .stage { position: relative; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 4/3; }
+  video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  .stage.off video { opacity: .15; }
+  .ring { position: absolute; inset: 0; border: 4px solid transparent; border-radius: 12px; pointer-events: none; transition: border-color .3s; }
+  .badge {
+    position: absolute; top: 12px; left: 12px; padding: 7px 12px; border-radius: 999px;
+    font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(6px);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .stage-empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center; gap: 8px; color: var(--muted); padding: 24px;
+  }
+  .stage-empty .big { font-size: 40px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
+    padding: 11px 16px; transition: transform .05s, background .2s, border-color .2s;
+  }
+  button:hover { border-color: #3a4150; }
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { background: #2a1a1c; border-color: #5a2b2f; color: #ffc9cc; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { border: none; border-radius: 0; background: transparent; padding: 9px 14px; font-weight: 600; }
+  .seg button.active { background: var(--accent); color: #fff; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .timer { font-variant-numeric: tabular-nums; font-size: 44px; font-weight: 700; letter-spacing: 1px; }
+  .timer small { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .statline { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .bars { margin-top: 16px; display: grid; gap: 10px; }
+  .bar { display: grid; grid-template-columns: 80px 1fr 64px; align-items: center; gap: 10px; font-size: 13px; }
+  .track { height: 10px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+  .fill { height: 100%; width: 0%; border-radius: 999px; transition: width .4s; }
+  .kvs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px; }
+  .kv { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .kv .v { font-size: 22px; font-weight: 700; }
+  .kv .k { font-size: 12px; color: var(--muted); }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 0 0 12px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(140%);
+    background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow);
+    border-radius: 14px; padding: 14px 18px; max-width: 460px; display: flex; gap: 12px;
+    align-items: center; transition: transform .35s cubic-bezier(.2,.9,.3,1.2); z-index: 50;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast .emo { font-size: 26px; }
+  .toast .msg { font-size: 14px; }
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+    align-items: center; justify-content: center; padding: 20px; z-index: 60;
+  }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; max-width: 460px; width: 100%; box-shadow: var(--shadow); }
+  .modal h2 { margin: 0 0 4px; }
+  .row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--line); }
+  .row:last-child { border-bottom: none; }
+  .muted { color: var(--muted); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">👀</div>
+    <div>
+      <h1>FocusBuddy</h1>
+      <p class="tag">A quiet body double that keeps you company while you work.</p>
+    </div>
+  </header>
+
+  <div class="privacy">
+    🔒 <b>Private by design.</b> Your camera is analyzed entirely in this browser using an on-device model.
+    No video, image, or frame ever leaves your computer — there is no server.
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: camera + controls -->
+    <div class="card">
+      <div class="stage off" id="stage">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="ring" id="ring"></div>
+        <div class="badge"><span class="dot" id="dot"></span><span id="badgeText">Not started</span></div>
+        <div class="stage-empty" id="stageEmpty">
+          <div class="big">🎥</div>
+          <div>Press <b>Start session</b> to begin.<br>Your browser will ask for camera permission.</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="primary" id="startBtn">▶ Start session</button>
+        <button class="danger" id="stopBtn" disabled>■ End session</button>
+        <button id="recalBtn" disabled title="Re-measure your 'looking at screen' pose">↺ Recalibrate</button>
+      </div>
+
+      <div class="controls" style="margin-top:14px; gap:18px;">
+        <div class="field">
+          <label>Coaching intensity</label>
+          <div class="seg" id="intensity">
+            <button data-mode="gentle" class="active">Gentle</button>
+            <button data-mode="standard">Standard</button>
+            <button data-mode="strict">Strict</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Nudge sound</label>
+          <div class="seg" id="soundSeg">
+            <button data-sound="on">On</button>
+            <button data-sound="off" class="active">Off</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint" id="modeHint">Gentle: only a soft check-in after you've been away ~60s. No sound, no shame.</div>
+    </div>
+
+    <!-- RIGHT: live stats -->
+    <div class="card">
+      <h3>This session</h3>
+      <div class="timer"><span id="focusClock">00:00</span> <small>focused</small></div>
+      <div class="statline" id="sessionLine">Not running.</div>
+
+      <div class="bars">
+        <div class="bar"><span>Focused</span><div class="track"><div class="fill" id="fFocus" style="background:var(--good)"></div></div><span id="pFocus" class="muted">0%</span></div>
+        <div class="bar"><span>Distracted</span><div class="track"><div class="fill" id="fDist" style="background:var(--warn)"></div></div><span id="pDist" class="muted">0%</span></div>
+        <div class="bar"><span>Away</span><div class="track"><div class="fill" id="fAway" style="background:var(--bad)"></div></div><span id="pAway" class="muted">0%</span></div>
+      </div>
+
+      <h3 style="margin-top:22px">All-time</h3>
+      <div class="kvs">
+        <div class="kv"><div class="v" id="atFocus">0m</div><div class="k">Total focused time</div></div>
+        <div class="kv"><div class="v" id="atSessions">0</div><div class="k">Sessions completed</div></div>
+        <div class="kv"><div class="v" id="atBest">—</div><div class="k">Best focus %</div></div>
+        <div class="kv"><div class="v" id="atStreak">0m</div><div class="k">Longest focus streak</div></div>
+      </div>
+      <div class="hint">Stats are stored only in this browser (localStorage). Clear them anytime: <a href="#" id="clearStats">reset all-time stats</a>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Nudge toast -->
+<div class="toast" id="toast"><div class="emo" id="toastEmo">👋</div><div class="msg" id="toastMsg"></div></div>
+
+<!-- Summary modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2>Session summary</h2>
+    <p class="muted" id="sumSub">Nice work.</p>
+    <div class="row"><span>Total time</span><b id="sumTotal">—</b></div>
+    <div class="row"><span>Focused</span><b id="sumFocus">—</b></div>
+    <div class="row"><span>Distracted (looking away)</span><b id="sumDist">—</b></div>
+    <div class="row"><span>Away from desk</span><b id="sumAway">—</b></div>
+    <div class="row"><span>Longest focus streak</span><b id="sumStreak">—</b></div>
+    <div class="row"><span>Nudges</span><b id="sumNudges">—</b></div>
+    <p class="muted" id="sumCoach" style="margin-top:14px"></p>
+    <div style="margin-top:18px; text-align:right"><button class="primary" id="closeModal">Done</button></div>
+  </div>
+</div>
+
+<script type="module">
+import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18";
+
+// ---------- Config ----------
+const MODES = {
+  gentle:   { away: 60, distract: 90, cooldown: 45, repeat: false, hint: "Gentle: only a soft check-in after you've been away ~60s. No sound, no shame." },
+  standard: { away: 30, distract: 45, cooldown: 30, repeat: false, hint: "Standard: a friendly nudge after ~30s away or ~45s looking away." },
+  strict:   { away: 15, distract: 20, cooldown: 15, repeat: true,  hint: "Strict: firm reminders after ~15s away. Still respectful — just persistent." },
+};
+const YAW_DEV = 30;   // degrees from baseline before counting as "looking away"
+const PITCH_DEV = 22;
+const STATE_DEBOUNCE = 0.7; // seconds a raw state must persist before it commits
+const CAL_SECONDS = 2.0;
+
+const MSGS = {
+  away: {
+    gentle:   ["👋", "Still around? No rush — your seat's waiting."],
+    standard: ["⏳", "You've been away a bit. Ready to jump back in?"],
+    strict:   ["⏰", "Back to the desk — the focus clock is paused."],
+  },
+  distract: {
+    gentle:   ["🙂", "Whenever you're ready, your screen is right here."],
+    standard: ["👀", "Eyes drifting — want to refocus on the task?"],
+    strict:   ["🎯", "Refocus on the screen. You've got this."],
+  },
+};
+
+// ---------- State ----------
+let faceLandmarker = null;
+let stream = null;
+let running = false;
+let mode = "gentle";
+let soundOn = false;
+
+let lastNow = 0;          // performance.now() seconds of previous frame
+let lastVideoTime = -1;
+let rafId = null;
+
+let phase = "idle";       // idle | calibrating | running
+let calSamples = [];
+let calStart = 0;
+let baseYaw = 0, basePitch = 0;
+
+// committed state machine
+let committed = "away";   // focused | distracted | away
+let rawState = "away";
+let rawSince = 0;         // seconds the raw state has held
+
+// accumulators (seconds)
+let tFocus = 0, tDist = 0, tAway = 0, tTotal = 0;
+let curFocusStreak = 0, bestStreak = 0;
+let contAway = 0, contDistract = 0;
+let lastNudgeAt = -999, nudgeCount = 0, sessionStart = 0;
+let lastKind = null;
+
+// cached last reading between video frames
+let lastPresent = false, lastYaw = 0, lastPitch = 0;
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const video = $("video"), stage = $("stage"), ring = $("ring");
+const dot = $("dot"), badgeText = $("badgeText"), stageEmpty = $("stageEmpty");
+const startBtn = $("startBtn"), stopBtn = $("stopBtn"), recalBtn = $("recalBtn");
+
+const STATE_STYLE = {
+  focused:     { color: "var(--good)",   label: "Focused",      emoji: "🟢" },
+  distracted:  { color: "var(--warn)",   label: "Looking away", emoji: "🟡" },
+  away:        { color: "var(--bad)",    label: "Away",         emoji: "🔴" },
+  calibrating: { color: "var(--accent)", label: "Calibrating…", emoji: "🔵" },
+  idle:        { color: "transparent",   label: "Not started",  emoji: "" },
+};
+
+// ---------- Settings UI ----------
+$("intensity").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  mode = b.dataset.mode;
+  [...e.currentTarget.children].forEach(c => c.classList.toggle("active", c === b));
+  $("modeHint").textContent = MODES[mode].hint;
+});
+$("soundSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  soundOn = b.dataset.sound === "on";
+  [...e.currentTarget.children].forEach(c => c.classList.toggle("active", c === b));
+});
+$("clearStats").addEventListener("click", (e) => {
+  e.preventDefault();
+  localStorage.removeItem("focusbuddy.stats.v1");
+  renderAllTime();
+});
+
+startBtn.addEventListener("click", start);
+stopBtn.addEventListener("click", () => stop(true));
+recalBtn.addEventListener("click", beginCalibration);
+$("closeModal").addEventListener("click", () => $("modalBg").classList.remove("show"));
+
+// ---------- Model ----------
+async function ensureModel() {
+  if (faceLandmarker) return;
+  badgeText.textContent = "Loading model…";
+  const fileset = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
+  );
+  const opts = (delegate) => ({
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      delegate,
+    },
+    outputFacialTransformationMatrixes: true,
+    runningMode: "VIDEO",
+    numFaces: 1,
+  });
+  try {
+    faceLandmarker = await FaceLandmarker.createFromOptions(fileset, opts("GPU"));
+  } catch (err) {
+    faceLandmarker = await FaceLandmarker.createFromOptions(fileset, opts("CPU"));
+  }
+}
+
+// ---------- Session control ----------
+async function start() {
+  startBtn.disabled = true;
+  try {
+    await ensureModel();
+  } catch (err) {
+    alert("Could not load the face model. Check your internet connection and try again.\n\n" + err);
+    startBtn.disabled = false; badgeText.textContent = "Not started"; return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+  } catch (err) {
+    alert("Camera access was blocked. Allow the camera, then press Start again.\n\nTip: open this page over http://localhost or https (file:// can block the camera in some browsers).\n\n" + err);
+    startBtn.disabled = false; badgeText.textContent = "Not started"; return;
+  }
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+
+  // reset session accumulators
+  tFocus = tDist = tAway = tTotal = 0;
+  curFocusStreak = bestStreak = contAway = contDistract = 0;
+  nudgeCount = 0; lastNudgeAt = -999; lastKind = null;
+  committed = "away"; rawState = "away"; rawSince = 0;
+  lastPresent = false;
+  sessionStart = Date.now();
+
+  running = true;
+  stage.classList.remove("off");
+  stageEmpty.style.display = "none";
+  stopBtn.disabled = false; recalBtn.disabled = false;
+
+  beginCalibration();
+  lastNow = performance.now() / 1000;
+  lastVideoTime = -1;
+  loop();
+}
+
+function beginCalibration() {
+  if (!running) return;
+  phase = "calibrating";
+  calSamples = [];
+  calStart = performance.now() / 1000;
+  setBadge("calibrating");
+}
+
+function stop(showModal) {
+  if (!running) return;
+  running = false;
+  phase = "idle";
+  cancelAnimationFrame(rafId);
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+  stage.classList.add("off");
+  stageEmpty.style.display = "flex";
+  startBtn.disabled = false; stopBtn.disabled = true; recalBtn.disabled = true;
+  setBadge("idle");
+  persistStats();
+  if (showModal) showSummary();
+}
+
+// ---------- Main loop ----------
+function loop() {
+  rafId = requestAnimationFrame(loop);
+  if (!running || !faceLandmarker) return;
+
+  const nowS = performance.now() / 1000;
+  let dt = nowS - lastNow;
+  lastNow = nowS;
+  if (dt > 0.5) dt = 0.5; // guard against tab-throttling jumps
+
+  // Only run detection when the video frame actually advanced
+  let present, yaw, pitch;
+  if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+    lastVideoTime = video.currentTime;
+    const res = faceLandmarker.detectForVideo(video, performance.now());
+    const mats = res.facialTransformationMatrixes;
+    if (mats && mats.length > 0) {
+      present = true;
+      const e = eulerFromMatrix(mats[0].data);
+      yaw = e.yaw; pitch = e.pitch;
+    } else if (res.faceLandmarks && res.faceLandmarks.length > 0) {
+      present = true; yaw = baseYaw; pitch = basePitch; // matrix missing but face seen
+    } else {
+      present = false; yaw = baseYaw; pitch = basePitch;
+    }
+    lastPresent = present; lastYaw = yaw; lastPitch = pitch;
+  } else {
+    present = lastPresent; yaw = lastYaw; pitch = lastPitch;
+  }
+
+  if (phase === "calibrating") {
+    if (present) calSamples.push([yaw, pitch]);
+    if (nowS - calStart >= CAL_SECONDS) {
+      if (calSamples.length >= 5) {
+        baseYaw = median(calSamples.map(s => s[0]));
+        basePitch = median(calSamples.map(s => s[1]));
+      }
+      phase = "running";
+    } else {
+      render();
+      return; // don't accumulate during calibration
+    }
+  }
+
+  // ----- classify raw state -----
+  let raw;
+  if (!present) raw = "away";
+  else if (Math.abs(yaw - baseYaw) > YAW_DEV || Math.abs(pitch - basePitch) > PITCH_DEV) raw = "distracted";
+  else raw = "focused";
+
+  if (raw === rawState) rawSince += dt; else { rawState = raw; rawSince = 0; }
+  if (rawSince >= STATE_DEBOUNCE && committed !== rawState) committed = rawState;
+
+  // ----- accumulate time into committed bucket -----
+  tTotal += dt;
+  if (committed === "focused") {
+    tFocus += dt; curFocusStreak += dt; contAway = 0; contDistract = 0;
+    if (curFocusStreak > bestStreak) bestStreak = curFocusStreak;
+  } else if (committed === "distracted") {
+    tDist += dt; contDistract += dt; curFocusStreak = 0; contAway = 0;
+  } else {
+    tAway += dt; contAway += dt; curFocusStreak = 0; contDistract = 0;
+  }
+
+  maybeNudge(nowS);
+  setBadge(committed);
+  render();
+}
+
+// ---------- Nudge ----------
+function maybeNudge(nowS) {
+  const m = MODES[mode];
+  const sinceLast = nowS - lastNudgeAt;
+  let kind = null;
+  if (contAway >= m.away) kind = "away";
+  else if (contDistract >= m.distract) kind = "distract";
+  if (!kind) return;
+  if (sinceLast < m.cooldown) return;
+  fireNudge(kind);
+  lastNudgeAt = nowS;
+  lastKind = kind;
+  nudgeCount++;
+  // Non-repeating modes: don't nag again until the user refocuses (which resets these counters).
+  if (!m.repeat) { contAway = 0; contDistract = 0; }
+}
+
+function fireNudge(kind) {
+  const [emo, msg] = MSGS[kind][mode];
+  $("toastEmo").textContent = emo;
+  $("toastMsg").textContent = msg;
+  const t = $("toast");
+  t.classList.add("show");
+  clearTimeout(fireNudge._t);
+  fireNudge._t = setTimeout(() => t.classList.remove("show"), 4200);
+  if (soundOn) beep();
+}
+
+let audioCtx = null;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "sine"; o.frequency.value = 660;
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.36);
+  } catch (e) {}
+}
+
+// ---------- Rendering ----------
+function setBadge(state) {
+  const s = STATE_STYLE[state] || STATE_STYLE.idle;
+  dot.style.background = s.color;
+  ring.style.borderColor = state === "idle" ? "transparent" : s.color;
+  badgeText.textContent = s.label;
+}
+
+function render() {
+  $("focusClock").textContent = clock(tFocus);
+  const pct = (x) => tTotal > 0 ? Math.round((x / tTotal) * 100) : 0;
+  const pf = pct(tFocus), pd = pct(tDist), pa = pct(tAway);
+  $("fFocus").style.width = pf + "%"; $("pFocus").textContent = pf + "%";
+  $("fDist").style.width = pd + "%"; $("pDist").textContent = pd + "%";
+  $("fAway").style.width = pa + "%"; $("pAway").textContent = pa + "%";
+  $("sessionLine").textContent = running
+    ? `Running • ${fmt(tTotal)} elapsed • ${nudgeCount} nudge${nudgeCount === 1 ? "" : "s"}`
+    : "Not running.";
+}
+
+function showSummary() {
+  const pf = tTotal > 0 ? Math.round((tFocus / tTotal) * 100) : 0;
+  $("sumTotal").textContent = fmt(tTotal);
+  $("sumFocus").textContent = `${fmt(tFocus)} (${pf}%)`;
+  $("sumDist").textContent = fmt(tDist);
+  $("sumAway").textContent = fmt(tAway);
+  $("sumStreak").textContent = fmt(bestStreak);
+  $("sumNudges").textContent = nudgeCount;
+  let coach;
+  if (tTotal < 60) coach = "Short session — start one a little longer next time and watch the focus bar fill up.";
+  else if (pf >= 85) coach = "Excellent focus. Whatever you did to set up, repeat it.";
+  else if (pf >= 60) coach = "Solid session. Trimming the away time is your biggest easy win.";
+  else coach = "A choppy one — try a shorter, single-task sprint next time and silence notifications.";
+  $("sumCoach").textContent = coach;
+  $("sumSub").textContent = pf >= 70 ? "Nice work. 🎉" : "Every session counts.";
+  $("modalBg").classList.add("show");
+}
+
+// ---------- Persistence ----------
+function loadStats() {
+  try { return JSON.parse(localStorage.getItem("focusbuddy.stats.v1")) || {}; }
+  catch (e) { return {}; }
+}
+function persistStats() {
+  if (tTotal < 5) return; // ignore trivial sessions
+  const s = loadStats();
+  s.totalFocusSec = (s.totalFocusSec || 0) + tFocus;
+  s.sessions = (s.sessions || 0) + 1;
+  s.bestStreakSec = Math.max(s.bestStreakSec || 0, bestStreak);
+  const pf = tTotal > 0 ? Math.round((tFocus / tTotal) * 100) : 0;
+  s.bestFocusPct = Math.max(s.bestFocusPct || 0, pf);
+  s.lastSession = new Date().toISOString();
+  localStorage.setItem("focusbuddy.stats.v1", JSON.stringify(s));
+  renderAllTime();
+}
+function renderAllTime() {
+  const s = loadStats();
+  $("atFocus").textContent = s.totalFocusSec ? fmt(s.totalFocusSec) : "0m";
+  $("atSessions").textContent = s.sessions || 0;
+  $("atBest").textContent = s.bestFocusPct ? s.bestFocusPct + "%" : "—";
+  $("atStreak").textContent = s.bestStreakSec ? fmt(s.bestStreakSec) : "0m";
+}
+
+// ---------- Math / format helpers ----------
+function median(arr) {
+  if (!arr.length) return 0;
+  const a = [...arr].sort((x, y) => x - y);
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+// Extract Euler angles (degrees) from a column-major 4x4 transform matrix.
+function eulerFromMatrix(m) {
+  const r00 = m[0], r10 = m[1];
+  const r11 = m[5], r21 = m[6];
+  const r02 = m[8], r12 = m[9], r22 = m[10];
+  const r20 = m[2];
+  const sy = Math.sqrt(r00 * r00 + r10 * r10);
+  let pitch, yaw, roll;
+  if (sy > 1e-6) {
+    pitch = Math.atan2(r21, r22);
+    yaw   = Math.atan2(-r20, sy);
+    roll  = Math.atan2(r10, r00);
+  } else {
+    pitch = Math.atan2(-r12, r11);
+    yaw   = Math.atan2(-r20, sy);
+    roll  = 0;
+  }
+  const D = 180 / Math.PI;
+  return { pitch: pitch * D, yaw: yaw * D, roll: roll * D };
+}
+function clock(sec) {
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+function fmt(sec) {
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h) return `${h}h ${m}m`;
+  if (m) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+// init
+renderAllTime();
+$("modeHint").textContent = MODES.gentle.hint;
+</script>
+</body>
+</html>
