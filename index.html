@@ -34,17 +34,42 @@
   header h1 { font-size: 22px; margin: 0; letter-spacing: .2px; }
   header .tag { color: var(--muted); font-size: 13px; margin: 0; }
   .privacy {
-    margin: 14px 0 22px; padding: 10px 14px; border: 1px solid var(--line);
+    margin: 14px 0 18px; padding: 10px 14px; border: 1px solid var(--line);
     background: linear-gradient(0deg, rgba(52,211,153,.06), rgba(52,211,153,.06)), var(--panel);
     border-radius: 12px; color: var(--muted); font-size: 13px;
   }
   .privacy b { color: var(--good); }
-  .grid { display: grid; grid-template-columns: 1.25fr .9fr; gap: 20px; }
-  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
   .card {
     background: var(--panel); border: 1px solid var(--line);
     border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
   }
+  /* Companion */
+  .companion { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+  .avatar {
+    font-size: 40px; line-height: 1; width: 64px; height: 64px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 50%;
+    transition: transform .18s ease;
+  }
+  .avatar.pop { transform: scale(1.16) rotate(-4deg); }
+  .bubble { flex: 1; min-width: 0; }
+  .bubble-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .bubble-name { font-weight: 700; }
+  .ai-tag { font-size: 10px; font-weight: 700; color: #fff; background: var(--accent); padding: 1px 7px; border-radius: 999px; letter-spacing: .5px; }
+  .ai-btn { margin-left: auto; }
+  .bubble-msg { color: var(--text); font-size: 15px; min-height: 22px; }
+  .ai-panel { margin: -4px 0 18px; padding: 14px 16px; }
+  .ai-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .ai-row input[type=password] {
+    flex: 1; min-width: 240px; background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--text); border-radius: 8px; padding: 9px 11px; font: inherit;
+  }
+  .ai-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .ai-note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .ai-note b { color: var(--text); }
+  .ai-note a { color: var(--accent); }
+  .grid { display: grid; grid-template-columns: 1.25fr .9fr; gap: 20px; }
+  @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
   .stage { position: relative; border-radius: 12px; overflow: hidden; background: #000; aspect-ratio: 4/3; }
   video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
   .stage.off video { opacity: .15; }
@@ -71,6 +96,7 @@
   button:disabled { opacity: .45; cursor: not-allowed; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.danger { background: #2a1a1c; border-color: #5a2b2f; color: #ffc9cc; }
+  .ai-btn { font-size: 12px; padding: 6px 11px; }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .seg button { border: none; border-radius: 0; background: transparent; padding: 9px 14px; font-weight: 600; }
   .seg button.active { background: var(--accent); color: #fff; }
@@ -123,7 +149,33 @@
 
   <div class="privacy">
     🔒 <b>Private by design.</b> Your camera is analyzed entirely in this browser using an on-device model.
-    No video, image, or frame ever leaves your computer — there is no server.
+    No video, image, or frame ever leaves your computer — there is no server. The AI companion is local by
+    default; if you switch on “smarter replies,” only short <b>text</b> stats (never your camera) are sent to Anthropic.
+  </div>
+
+  <!-- AI companion -->
+  <div class="card companion" id="companionCard">
+    <div class="avatar" id="avatar">🦉</div>
+    <div class="bubble">
+      <div class="bubble-head">
+        <span class="bubble-name">Hoot</span>
+        <span class="ai-tag" id="aiTag" hidden>AI</span>
+        <button class="ai-btn" id="aiBtn">🤖 Smarter replies: Off</button>
+      </div>
+      <div class="bubble-msg" id="companionMsg">Hi, I'm Hoot 🦉 — your focus buddy. Hit <b>Start session</b> and I'll keep you company.</div>
+    </div>
+  </div>
+  <div class="ai-panel card" id="aiPanel" hidden>
+    <div class="ai-row">
+      <input type="password" id="aiKey" placeholder="Anthropic API key (sk-ant-…) — stored only in this browser" autocomplete="off" />
+      <label class="ai-check"><input type="checkbox" id="aiEnable" /> Enable</label>
+    </div>
+    <div class="ai-note">
+      With this on, Hoot uses Claude (Haiku) for richer, varied replies. Only short <b>text</b> stats — focus %, minutes —
+      are sent to Anthropic; <b>never your camera</b>. Your key stays in this browser only. Get one at
+      <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+      Leave it off to keep everything 100% on-device.
+    </div>
   </div>
 
   <div class="grid">
@@ -221,6 +273,7 @@ const YAW_DEV = 30;   // degrees from baseline before counting as "looking away"
 const PITCH_DEV = 22;
 const STATE_DEBOUNCE = 0.7; // seconds a raw state must persist before it commits
 const CAL_SECONDS = 2.0;
+const CHECKIN_MIN = 5;      // minutes between AI check-ins
 
 const MSGS = {
   away: {
@@ -233,6 +286,25 @@ const MSGS = {
     standard: ["👀", "Eyes drifting — want to refocus on the task?"],
     strict:   ["🎯", "Refocus on the screen. You've got this."],
   },
+};
+
+// ---------- Companion ----------
+const MOODS = {
+  idle: "🦉", greet: "🦉", focused: "🦉", deep: "🤓", distracted: "🤔",
+  away: "😴", back: "😊", nudge: "👋", celebrate: "🥳", proud: "🤩", done: "🦉",
+};
+const LINES = {
+  greet: ["Let's do this — I'll be right here. 🦉", "Settle in. I've got your back.", "Ready when you are. One task at a time."],
+  calibrated: ["Calibrated. Go get 'em.", "All set — I can see you're locked in.", "Got your baseline. Let's focus."],
+  to_distracted: ["Take your time — I'll wait.", "Whenever you're ready, the task's still here.", "Just a glance? No worries."],
+  to_away: ["I'll keep your seat warm.", "Go stretch — I'll be here.", "Pausing with you. Come back soon."],
+  back_from_away: ["Welcome back! Let's pick up the thread.", "There you are 😊 back to it.", "Good to see you — let's roll."],
+  back_focus: ["Nice — eyes on the prize again.", "And we're back. 👌", "Locked in once more."],
+};
+const STREAKS = {
+  5: "5 minutes straight 🎉 you're rolling.",
+  10: "10-minute streak! Momentum is yours.",
+  25: "25 minutes deep 🤩 that's a real flow state.",
 };
 
 // ---------- State ----------
@@ -263,6 +335,12 @@ let contAway = 0, contDistract = 0;
 let lastNudgeAt = -999, nudgeCount = 0, sessionStart = 0;
 let lastKind = null;
 
+// companion
+let aiEnabled = false, aiKey = "";
+let lastSpeakAt = -999;
+let announcedStreaks = new Set();
+let lastCheckinAt = 0;
+
 // cached last reading between video frames
 let lastPresent = false, lastYaw = 0, lastPitch = 0;
 
@@ -273,11 +351,11 @@ const dot = $("dot"), badgeText = $("badgeText"), stageEmpty = $("stageEmpty");
 const startBtn = $("startBtn"), stopBtn = $("stopBtn"), recalBtn = $("recalBtn");
 
 const STATE_STYLE = {
-  focused:     { color: "var(--good)",   label: "Focused",      emoji: "🟢" },
-  distracted:  { color: "var(--warn)",   label: "Looking away", emoji: "🟡" },
-  away:        { color: "var(--bad)",    label: "Away",         emoji: "🔴" },
-  calibrating: { color: "var(--accent)", label: "Calibrating…", emoji: "🔵" },
-  idle:        { color: "transparent",   label: "Not started",  emoji: "" },
+  focused:     { color: "var(--good)",   label: "Focused" },
+  distracted:  { color: "var(--warn)",   label: "Looking away" },
+  away:        { color: "var(--bad)",    label: "Away" },
+  calibrating: { color: "var(--accent)", label: "Calibrating…" },
+  idle:        { color: "transparent",   label: "Not started" },
 };
 
 // ---------- Settings UI ----------
@@ -302,6 +380,103 @@ startBtn.addEventListener("click", start);
 stopBtn.addEventListener("click", () => stop(true));
 recalBtn.addEventListener("click", beginCalibration);
 $("closeModal").addEventListener("click", () => $("modalBg").classList.remove("show"));
+
+// AI companion settings
+const AI_KEY_LS = "focusbuddy.aikey", AI_EN_LS = "focusbuddy.aienabled";
+$("aiBtn").addEventListener("click", () => { const p = $("aiPanel"); p.hidden = !p.hidden; });
+$("aiKey").addEventListener("input", (e) => { aiKey = e.target.value.trim(); localStorage.setItem(AI_KEY_LS, aiKey); updateAIBtn(); });
+$("aiEnable").addEventListener("change", (e) => {
+  aiEnabled = e.target.checked; localStorage.setItem(AI_EN_LS, aiEnabled ? "1" : "0"); updateAIBtn();
+  if (aiEnabled && aiKey) speak("Smarter replies on — I'll think a little harder. 🤖", "greet", true);
+  else if (aiEnabled && !aiKey) speak("Add your API key above and I'll switch to smarter replies.", "idle", true);
+});
+function updateAIBtn() { $("aiBtn").textContent = "🤖 Smarter replies: " + (aiEnabled && aiKey ? "On" : "Off"); }
+function loadAI() {
+  aiKey = localStorage.getItem(AI_KEY_LS) || "";
+  aiEnabled = localStorage.getItem(AI_EN_LS) === "1";
+  $("aiKey").value = aiKey;
+  $("aiEnable").checked = aiEnabled;
+  updateAIBtn();
+}
+
+// ---------- Companion helpers ----------
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function setMood(mood) {
+  const a = $("avatar");
+  a.textContent = MOODS[mood] || MOODS.idle;
+  a.classList.remove("pop"); void a.offsetWidth; a.classList.add("pop");
+}
+function speak(text, mood, important) {
+  const now = performance.now() / 1000;
+  if (!important && now - lastSpeakAt < 7) return;
+  lastSpeakAt = now;
+  $("companionMsg").textContent = text;
+  $("aiTag").hidden = true;
+  setMood(mood);
+}
+function speakAI(text, mood) {
+  lastSpeakAt = performance.now() / 1000;
+  $("companionMsg").textContent = text;
+  $("aiTag").hidden = false;
+  setMood(mood);
+}
+function onStateChange(prev, next) {
+  if (next === "away") speak(pick(LINES.to_away), "away", false);
+  else if (next === "distracted") speak(pick(LINES.to_distracted), "distracted", false);
+  else if (next === "focused") {
+    if (prev === "away") { speak(pick(LINES.back_from_away), "back", true); maybeWelcomeBackAI(); }
+    else speak(pick(LINES.back_focus), "back", false);
+  }
+}
+function companionDebrief() {
+  const pf = tTotal > 0 ? Math.round((tFocus / tTotal) * 100) : 0;
+  let line;
+  if (tTotal < 60) line = "Short and sweet. Come back for a longer one? 🦉";
+  else if (pf >= 85) line = "Outstanding focus today. I'm proud of you. 🤩";
+  else if (pf >= 60) line = "Solid work — trim the away time and you're golden.";
+  else line = "Choppy, but you showed up. That's what counts.";
+  speak(line, pf >= 60 ? "proud" : "done", true);
+  if (aiEnabled && aiKey) aiDebrief();
+}
+
+// ---------- AI (optional, bring-your-own-key) ----------
+async function claudeLine(context) {
+  if (!aiKey) return null;
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": aiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 60,
+        system: "You are Hoot, a warm, concise focus-companion owl. Always reply with exactly ONE short sentence (under 22 words). Be encouraging, never naggy or shaming. Plain text only, no surrounding quotes.",
+        messages: [{ role: "user", content: context }],
+      }),
+    });
+    if (!r.ok) { console.warn("Claude API error", r.status); return null; }
+    const d = await r.json();
+    const t = (d.content && d.content[0] && d.content[0].text || "").trim();
+    return t || null;
+  } catch (e) { console.warn("Claude fetch failed", e); return null; }
+}
+async function aiLine(context, mood) { const t = await claudeLine(context); if (t) speakAI(t, mood); }
+function aiCheckin() {
+  const pf = tTotal > 0 ? Math.round((tFocus / tTotal) * 100) : 0;
+  aiLine(`Mid focus session. So far: ${Math.round(tFocus / 60)} min focused, ${pf}% focus, best streak ${fmt(bestStreak)}. Give one short, warm check-in.`, "focused");
+}
+function maybeWelcomeBackAI() {
+  if (!(aiEnabled && aiKey)) return;
+  aiLine(`The user just returned to their desk after being away. Welcome them back in one short, warm sentence.`, "back");
+}
+function aiDebrief() {
+  const pf = tTotal > 0 ? Math.round((tFocus / tTotal) * 100) : 0;
+  aiLine(`The focus session just ended. Stats — focused ${fmt(tFocus)} (${pf}%), away ${fmt(tAway)}, distracted ${fmt(tDist)}, best streak ${fmt(bestStreak)}, ${nudgeCount} nudges. Give one warm, encouraging one-sentence debrief with no shame.`, pf >= 60 ? "proud" : "done");
+}
 
 // ---------- Model ----------
 async function ensureModel() {
@@ -350,6 +525,7 @@ async function start() {
   nudgeCount = 0; lastNudgeAt = -999; lastKind = null;
   committed = "away"; rawState = "away"; rawSince = 0;
   lastPresent = false;
+  announcedStreaks = new Set(); lastSpeakAt = -999;
   sessionStart = Date.now();
 
   running = true;
@@ -357,6 +533,7 @@ async function start() {
   stageEmpty.style.display = "none";
   stopBtn.disabled = false; recalBtn.disabled = false;
 
+  speak(pick(LINES.greet), "greet", true);
   beginCalibration();
   lastNow = performance.now() / 1000;
   lastVideoTime = -1;
@@ -383,6 +560,7 @@ function stop(showModal) {
   startBtn.disabled = false; stopBtn.disabled = true; recalBtn.disabled = true;
   setBadge("idle");
   persistStats();
+  companionDebrief();
   if (showModal) showSummary();
 }
 
@@ -424,6 +602,9 @@ function loop() {
         basePitch = median(calSamples.map(s => s[1]));
       }
       phase = "running";
+      committed = "focused"; rawState = "focused"; rawSince = STATE_DEBOUNCE;
+      lastCheckinAt = nowS;
+      speak(pick(LINES.calibrated), "focused", true);
     } else {
       render();
       return; // don't accumulate during calibration
@@ -437,13 +618,24 @@ function loop() {
   else raw = "focused";
 
   if (raw === rawState) rawSince += dt; else { rawState = raw; rawSince = 0; }
-  if (rawSince >= STATE_DEBOUNCE && committed !== rawState) committed = rawState;
+  if (rawSince >= STATE_DEBOUNCE && committed !== rawState) {
+    const prev = committed;
+    committed = rawState;
+    onStateChange(prev, committed);
+  }
 
   // ----- accumulate time into committed bucket -----
   tTotal += dt;
   if (committed === "focused") {
     tFocus += dt; curFocusStreak += dt; contAway = 0; contDistract = 0;
     if (curFocusStreak > bestStreak) bestStreak = curFocusStreak;
+    const mins = Math.floor(curFocusStreak / 60);
+    for (const k of [5, 10, 25]) {
+      if (mins >= k && !announcedStreaks.has(k)) { announcedStreaks.add(k); speak(STREAKS[k], k >= 25 ? "proud" : "celebrate", true); }
+    }
+    if (aiEnabled && aiKey && (nowS - lastCheckinAt) > CHECKIN_MIN * 60 && tTotal > 30) {
+      lastCheckinAt = nowS; aiCheckin();
+    }
   } else if (committed === "distracted") {
     tDist += dt; contDistract += dt; curFocusStreak = 0; contAway = 0;
   } else {
@@ -468,7 +660,6 @@ function maybeNudge(nowS) {
   lastNudgeAt = nowS;
   lastKind = kind;
   nudgeCount++;
-  // Non-repeating modes: don't nag again until the user refocuses (which resets these counters).
   if (!m.repeat) { contAway = 0; contDistract = 0; }
 }
 
@@ -601,6 +792,7 @@ function fmt(sec) {
 
 // init
 renderAllTime();
+loadAI();
 $("modeHint").textContent = MODES.gentle.hint;
 </script>
 </body>

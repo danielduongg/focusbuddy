@@ -33,7 +33,8 @@ productivity metric, pair it with app/website tracking (see [Roadmap](#roadmap))
 - 🔔 Optional soft chime on nudges (off by default)
 - 📈 **All-time stats** (total focus time, sessions, best focus %, longest streak) stored locally
 - 🧭 **Auto-calibration** — measures *your* "looking at screen" pose for ~2s so it adapts to your camera placement
-- 🔒 No network calls except loading the model files; **no telemetry**
+- 🦉 **Hoot, your companion** — a friendly on-screen buddy that reacts to your focus in real time, celebrates streaks, nudges gently, and gives an end-of-session debrief. Local by default; an optional **bring-your-own Claude API key** unlocks smarter, varied replies (sends only text stats, never your camera)
+- 🔒 No network by default except loading the model; **no telemetry**. (Smarter replies, if you switch them on, call Anthropic with text stats only.)
 
 ## Run it
 
@@ -86,6 +87,7 @@ webcam ──getUserMedia──▶ <video> ──▶ MediaPipe FaceLandmarker (W
   Want it fully offline? Download `@mediapipe/tasks-vision` and the `.task` model, then
   point the paths in `index.html` at your local copies.
 - Stats live in `localStorage` and never leave the browser. Reset them from the UI anytime.
+- The AI companion is **local by default**. If you turn on "smarter replies" and add your own Anthropic API key, FocusBuddy sends only short **text** stats (focus %, minutes) to Anthropic to generate a one-line message — **never any image or video**. Your key is stored only in your browser (`localStorage`) and is never committed or uploaded.
 
 ## A note on the strict mode
 
@@ -99,7 +101,8 @@ mode encouraging rather than punishing. Make it a tool you don't resent by Wedne
 - [ ] Optional desktop notifications when the tab is in the background
 - [ ] Pomodoro mode (work/break cycles)
 - [ ] **Real** productivity signal via active-app/website tracking (needs a desktop wrapper like Electron — a webcam alone can't do this)
-- [ ] Optional end-of-session AI summary that sends only *text* stats (never video) to an LLM
+- [x] **AI companion (Hoot)** with optional Claude-powered replies that send only *text* stats (never video) — **done**
+- [ ] Let Hoot speak its lines aloud (text-to-speech) for a true study-with-me feel
 
 ## Tech
 
